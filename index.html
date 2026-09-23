@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>JC Nay Insurance — CRM Pipeline</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif}
+:root{
+  --bg:#0f1117;--surface:#1a1d2e;--surface2:#232640;--border:#2e3154;
+  --text:#e8eaf6;--muted:#8b8fa8;--accent:#6c63ff;--accent2:#ff6584;
+  --green:#4caf50;--yellow:#ffc107;--red:#f44336;--blue:#2196f3;
+  --orange:#ff9800;--purple:#9c27b0;--teal:#009688;
+}
+body{background:var(--bg);color:var(--text);min-height:100vh}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+.header-right{display:flex;gap:10px;align-items:center}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:.2s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#5a52d5}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text)}
+.btn-active{background:var(--surface2);color:var(--text);border:1px solid var(--accent)}
+
+/* TOOLBAR */
+.toolbar{padding:16px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-bottom:1px solid var(--border)}
+.search-box{flex:1;min-width:200px;position:relative}
+.search-box input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px 8px 36px;color:var(--text);font-size:13px}
+.search-box input:focus{outline:none;border-color:var(--accent)}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:14px}
+select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;cursor:pointer}
+select:focus{outline:none;border-color:var(--accent)}
+.stats-bar{display:flex;gap:16px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.stat{background:var(--surface2);border-radius:8px;padding:10px 16px;display:flex;flex-direction:column;gap:2px;border:1px solid var(--border)}
+.stat-val{font-size:22px;font-weight:800;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+
+/* KANBAN */
+.kanban{display:flex;gap:14px;padding:20px 24px;overflow-x:auto;min-height:calc(100vh - 200px);align-items:flex-start}
+.kanban::-webkit-scrollbar{height:6px}
+.kanban::-webkit-scrollbar-track{background:var(--bg)}
+.kanban::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+.column{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:240px;max-width:240px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)}
+.column.drag-over{border-color:var(--accent);background:#1a1d2e}
+.col-header{padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.col-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.col-count{background:var(--surface2);border-radius:20px;padding:2px 8px;font-size:11px;color:var(--muted)}
+.col-cards{padding:10px;display:flex;flex-direction:column;gap:8px;overflow-y:auto;flex:1}
+.col-cards::-webkit-scrollbar{width:4px}
+.col-cards::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* CARD */
+.card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;cursor:grab;transition:.15s;user-select:none}
+.card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.card.dragging{opacity:.4}
+.card-name{font-size:13px;font-weight:700;margin-bottom:4px}
+.card-phone{font-size:11px;color:var(--muted);margin-bottom:6px}
+.card-tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+.tag{font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600}
+.tag-iul{background:#3d2b6b;color:#bb86fc}
+.tag-term{background:#1b3a6b;color:#64b5f6}
+.tag-med{background:#1b4a3a;color:#80cbc4}
+.tag-salud{background:#4a2b1b;color:#ffb74d}
+.tag-anu{background:#3a1b4a;color:#f48fb1}
+.card-actions{display:flex;gap:6px}
+.card-btn{flex:1;padding:5px;border-radius:6px;border:none;cursor:pointer;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px;text-decoration:none;transition:.15s}
+.card-btn-call{background:#1b3a1b;color:#81c784}
+.card-btn-call:hover{background:#2e5c2e}
+.card-btn-wa{background:#1b3a2b;color:#4caf50}
+.card-btn-wa:hover{background:#2e5c3e}
+.card-btn-note{background:var(--surface);color:var(--muted)}
+.card-btn-note:hover{background:var(--border);color:var(--text)}
+.card-date{font-size:10px;color:var(--muted);margin-top:6px}
+.priority-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.p-high{background:var(--red)}
+.p-med{background:var(--yellow)}
+.p-low{background:var(--green)}
+
+/* TABLE VIEW */
+.table-view{padding:20px 24px;display:none}
+.table-view.active{display:block}
+.kanban-view{display:flex}
+.kanban-view.hidden{display:none}
+table{width:100%;border-collapse:collapse;background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border)}
+thead{background:var(--surface2)}
+th{padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--border)}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface2)}
+.stage-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;padding:20px}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;display:flex;flex-direction:column}
+.modal-head{padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head h2{font-size:18px;font-weight:800}
+.modal-close{background:var(--surface2);border:none;color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px 24px;display:flex;flex-direction:column;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+.form-group input,.form-group select,.form-group textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--accent)}
+.form-group textarea{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-foot{padding:16px 24px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end}
+.btn-danger{background:var(--red);color:#fff}
+.btn-danger:hover{background:#c62828}
+
+/* Notes */
+.notes-section{background:var(--surface2);border-radius:10px;padding:14px}
+.notes-section h4{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.note-item{background:var(--surface);border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px;line-height:1.5}
+.note-date{font-size:10px;color:var(--muted);margin-top:4px}
+.add-note{display:flex;gap:8px;margin-top:8px}
+.add-note input{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px}
+.add-note input:focus{outline:none;border-color:var(--accent)}
+.add-note button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 12px;cursor:pointer;font-size:12px;font-weight:600}
+
+/* Action btns in modal */
+.modal-actions{display:flex;gap:8px}
+.modal-action-btn{flex:1;padding:10px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;transition:.2s}
+.mac-call{background:#1b3a1b;color:#81c784}
+.mac-call:hover{background:#2e5c2e}
+.mac-wa{background:#1b3a2b;color:#4caf50}
+.mac-wa:hover{background:#2e5c3e}
+.mac-email{background:#1b2a3a;color:#64b5f6}
+.mac-email:hover{background:#2e3e5c}
+
+/* Empty state */
+.empty-col{text-align:center;padding:20px;color:var(--muted);font-size:12px}
+
+/* View toggle */
+.view-toggle{display:flex;gap:4px;background:var(--surface2);border-radius:8px;padding:3px}
+.view-btn{padding:6px 12px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:600;background:transparent;color:var(--muted);transition:.15s}
+.view-btn.active{background:var(--accent);color:#fff}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo">JC NAY <span>Insurance</span> <span style="font-size:11px;color:var(--muted);font-weight:400">CRM Pipeline</span></div>
+  <div class="header-right">
+    <div class="view-toggle">
+      <button class="view-btn active" onclick="setView('kanban')">⊞ Kanban</button>
+      <button class="view-btn" onclick="setView('table')">☰ Tabla</button>
+    </div>
+    <button class="btn btn-primary" onclick="openNewLead()">+ Nuevo Lead</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-bar" id="statsBar"></div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="search-box">
+    <span class="search-icon">🔍</span>
+    <input type="text" id="searchInput" placeholder="Buscar lead, teléfono, email..." oninput="renderAll()"/>
+  </div>
+  <select id="filterProduct" onchange="renderAll()">
+    <option value="">Todos los productos</option>
+    <option value="IUL">IUL</option>
+    <option value="Término">Vida Término</option>
+    <option value="Medicare">Medicare</option>
+    <option value="Salud">Salud</option>
+    <option value="Anualidad">Anualidad</option>
+  </select>
+  <select id="filterPriority" onchange="renderAll()">
+    <option value="">Todas las prioridades</option>
+    <option value="Alta">Alta</option>
+    <option value="Media">Media</option>
+    <option value="Baja">Baja</option>
+  </select>
+</div>
+
+<!-- KANBAN -->
+<div class="kanban-view" id="kanbanView">
+<div class="kanban" id="kanbanBoard"></div>
+</div>
+
+<!-- TABLE -->
+<div class="table-view" id="tableView">
+  <table>
+    <thead>
+      <tr>
+        <th>Nombre</th><th>Teléfono</th><th>Producto</th><th>Etapa</th><th>Prioridad</th><th>Último contacto</th><th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<!-- MODAL LEAD -->
+<div class="overlay" id="leadModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 id="modalTitle">Nuevo Lead</h2>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="modalActions" class="modal-actions" style="display:none">
+        <a id="btnCall" class="modal-action-btn mac-call" href="#">📞 Llamar</a>
+        <a id="btnWa" class="modal-action-btn mac-wa" target="_blank" href="#">💬 WhatsApp</a>
+        <a id="btnEmail" class="modal-action-btn mac-email" href="#">✉️ Email</a>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input id="fName" placeholder="Juan Pérez"/></div>
+        <div class="form-group"><label>Teléfono *</label><input id="fPhone" placeholder="+1 (555) 000-0000"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Email</label><input id="fEmail" placeholder="juan@email.com"/></div>
+        <div class="form-group"><label>Producto</label>
+          <select id="fProduct">
+            <option>IUL</option><option>Término</option><option>Medicare</option><option>Salud</option><option>Anualidad</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Etapa</label>
+          <select id="fStage">
+            <option value="0">🆕 Nuevo Lead</option>
+            <option value="1">📞 Contactado</option>
+            <option value="2">📅 Cita Agendada</option>
+            <option value="3">💼 Presentación</option>
+            <option value="4">📋 Aplicación</option>
+            <option value="5">🔍 Underwriting</option>
+            <option value="6">✅ Póliza Emitida</option>
+            <option value="7">❌ Perdido</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Prioridad</label>
+          <select id="fPriority">
+            <option>Alta</option><option selected>Media</option><option>Baja</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Cobertura deseada</label><input id="fCoverage" placeholder="$500,000"/></div>
+        <div class="form-group"><label>Prima estimada</label><input id="fPremium" placeholder="$150/mes"/></div>
+      </div>
+      <div class="form-group"><label>Fuente del lead</label>
+        <select id="fSource">
+          <option>Facebook Ads</option><option>Instagram</option><option>Referido</option><option>WhatsApp</option><option>Llamada fría</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Notas iniciales</label><textarea id="fNotes" placeholder="Detalles del cliente, necesidades, objeciones..."></textarea></div>
+
+      <!-- Notes section (only for existing leads) -->
+      <div id="notesSection" class="notes-section" style="display:none">
+        <h4>📝 Historial de notas</h4>
+        <div id="notesList"></div>
+        <div class="add-note">
+          <input id="newNoteInput" placeholder="Agregar nota rápida..."/>
+          <button onclick="addNote()">+ Agregar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="btnDelete" onclick="deleteLead()" style="display:none">🗑 Eliminar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveLead()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STAGES = [
+  {id:0, label:'🆕 Nuevo Lead',      color:'#6c63ff', bg:'#2d2b6b'},
+  {id:1, label:'📞 Contactado',      color:'#2196f3', bg:'#1b2a4a'},
+  {id:2, label:'📅 Cita Agendada',   color:'#ff9800', bg:'#3a2a1b'},
+  {id:3, label:'💼 Presentación',    color:'#9c27b0', bg:'#2a1b3a'},
+  {id:4, label:'📋 Aplicación',      color:'#00bcd4', bg:'#1b2e30'},
+  {id:5, label:'🔍 Underwriting',    color:'#ff5722', bg:'#3a1b1b'},
+  {id:6, label:'✅ Póliza Emitida',  color:'#4caf50', bg:'#1b3a1b'},
+  {id:7, label:'❌ Perdido',         color:'#f44336', bg:'#3a1b1b'},
+];
+
+const PRODUCT_TAG = {
+  'IUL':'tag-iul','Término':'tag-term','Medicare':'tag-med','Salud':'tag-salud','Anualidad':'tag-anu'
+};
+
+let leads = [];
+let editingId = null;
+let dragId = null;
+let currentView = 'kanban';
+
+function save() {
+  try { localStorage.setItem('jcnay_leads', JSON.stringify(leads)); } catch(e){}
+}
+function load() {
+  try {
+    const d = localStorage.getItem('jcnay_leads');
+    if (d) leads = JSON.parse(d);
+    if (!leads.length) leads = getSampleLeads();
+  } catch(e) { leads = getSampleLeads(); }
+}
+
+function getSampleLeads() {
+  return [
+    {id:uid(),name:'Carlos Mendoza',phone:'(908) 555-1234',email:'carlos@email.com',product:'IUL',stage:0,priority:'Alta',coverage:'$500,000',premium:'$200/mes',source:'Facebook Ads',notes:'Interesado en proteger a su familia. Tiene 2 hijos.',noteLog:[],created:new Date().toISOString()},
+    {id:uid(),name:'María López',phone:'(201) 555-5678',email:'maria@email.com',product:'Término',stage:1,priority:'Media',coverage:'$250,000',premium:'$80/mes',source:'Referido',notes:'La refirió Carlos Mendoza.',noteLog:[],created:new Date().toISOString()},
+    {id:uid(),name:'Roberto Díaz',phone:'(732) 555-9012',email:'roberto@email.com',product:'Medicare',stage:2,priority:'Alta',coverage:'Plan C',premium:'$150/mes',source:'Instagram',notes:'Tiene 64 años, se jubila en 6 meses.',noteLog:[],created:new Date().toISOString()},
+    {id:uid(),name:'Ana García',phone:'(973) 555-3456',email:'ana@email.com',product:'IUL',stage:3,priority:'Alta',coverage:'$1,000,000',premium:'$450/mes',source:'WhatsApp',notes:'Empresaria, busca planificación fiscal.',noteLog:[],created:new Date().toISOString()},
+    {id:uid(),name:'Luis Torres',phone:'(551) 555-7890',email:'luis@email.com',product:'Salud',stage:6,priority:'Baja',coverage:'Familiar',premium:'$320/mes',source:'Llamada fría',notes:'Póliza emitida el 15 de marzo.',noteLog:[],created:new Date().toISOString()},
+  ];
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+
+function filtered() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  const prod = document.getElementById('filterProduct').value;
+  const pri = document.getElementById('filterPriority').value;
+  return leads.filter(l =>
+    (!q || l.name.toLowerCase().includes(q) || l.phone.includes(q) || (l.email||'').toLowerCase().includes(q)) &&
+    (!prod || l.product === prod) &&
+    (!pri || l.priority === pri)
+  );
+}
+
+function renderStats() {
+  const total = leads.length;
+  const active = leads.filter(l => l.stage < 6).length;
+  const closed = leads.filter(l => l.stage === 6).length;
+  const lost = leads.filter(l => l.stage === 7).length;
+  const highPri = leads.filter(l => l.priority === 'Alta').length;
+  document.getElementById('statsBar').innerHTML = `
+    <div class="stat"><div class="stat-val">${total}</div><div class="stat-label">Total Leads</div></div>
+    <div class="stat"><div class="stat-val" style="color:#2196f3">${active}</div><div class="stat-label">Activos</div></div>
+    <div class="stat"><div class="stat-val" style="color:#4caf50">${closed}</div><div class="stat-label">Pólizas Emitidas</div></div>
+    <div class="stat"><div class="stat-val" style="color:#f44336">${lost}</div><div class="stat-label">Perdidos</div></div>
+    <div class="stat"><div class="stat-val" style="color:#ffc107">${highPri}</div><div class="stat-label">Alta Prioridad</div></div>
+  `;
+}
+
+function renderKanban() {
+  const data = filtered();
+  const board = document.getElementById('kanbanBoard');
+  board.innerHTML = '';
+  STAGES.forEach(stage => {
+    const cards = data.filter(l => l.stage === stage.id);
+    const col = document.createElement('div');
+    col.className = 'column';
+    col.dataset.stage = stage.id;
+    col.addEventListener('dragover', e => { e.preventDefault(); col.classList.add('drag-over'); });
+    col.addEventListener('dragleave', () => col.classList.remove('drag-over'));
+    col.addEventListener('drop', e => { e.preventDefault(); col.classList.remove('drag-over'); dropLead(stage.id); });
+    col.innerHTML = `
+      <div class="col-header">
+        <div class="col-title" style="color:${stage.color}">${stage.label}</div>
+        <span class="col-count">${cards.length}</span>
+      </div>
+      <div class="col-cards" id="col-${stage.id}">
+        ${cards.length ? '' : '<div class="empty-col">Sin leads</div>'}
+        ${cards.map(l => cardHTML(l)).join('')}
+      </div>`;
+    board.appendChild(col);
+  });
+  // Attach drag events
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('dragstart', () => { dragId = card.dataset.id; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+}
+
+function cardHTML(l) {
+  const pClass = l.priority==='Alta' ? 'p-high' : l.priority==='Media' ? 'p-med' : 'p-low';
+  const tagClass = PRODUCT_TAG[l.product] || '';
+  const date = l.created ? new Date(l.created).toLocaleDateString('es-US',{month:'short',day:'numeric'}) : '';
+  return `<div class="card" draggable="true" data-id="${l.id}" onclick="openLead('${l.id}')">
+    <div class="card-name"><span class="priority-dot ${pClass}"></span>${l.name}</div>
+    <div class="card-phone">${l.phone}</div>
+    <div class="card-tags"><span class="tag ${tagClass}">${l.product}</span>${l.source ? `<span class="tag" style="background:#1b2b1b;color:#a5d6a7">${l.source}</span>` : ''}</div>
+    <div class="card-actions">
+      <a class="card-btn card-btn-call" href="tel:${l.phone}" onclick="e=>e.stopPropagation()">📞 Llamar</a>
+      <a class="card-btn card-btn-wa" href="https://wa.me/1${l.phone.replace(/\D/g,'')}" target="_blank" onclick="e=>e.stopPropagation()">💬 WA</a>
+      <button class="card-btn card-btn-note" onclick="event.stopPropagation();openLead('${l.id}')">📝 Ver</button>
+    </div>
+    ${date ? `<div class="card-date">📅 ${date}</div>` : ''}
+  </div>`;
+}
+
+function renderTable() {
+  const data = filtered();
+  const tbody = document.getElementById('tableBody');
+  tbody.innerHTML = data.map(l => {
+    const s = STAGES[l.stage];
+    const pColor = l.priority==='Alta' ? '#f44336' : l.priority==='Media' ? '#ffc107' : '#4caf50';
+    const date = l.created ? new Date(l.created).toLocaleDateString('es-US',{month:'short',day:'numeric',year:'numeric'}) : '-';
+    return `<tr>
+      <td><strong>${l.name}</strong></td>
+      <td><a href="tel:${l.phone}" style="color:var(--accent);text-decoration:none">${l.phone}</a></td>
+      <td><span class="tag ${PRODUCT_TAG[l.product]||''}">${l.product}</span></td>
+      <td><span class="stage-badge" style="background:${s.bg};color:${s.color}">${s.label}</span></td>
+      <td><span style="color:${pColor};font-weight:700">${l.priority}</span></td>
+      <td style="color:var(--muted)">${date}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <a href="tel:${l.phone}" class="card-btn card-btn-call" style="padding:4px 8px">📞</a>
+          <a href="https://wa.me/1${l.phone.replace(/\D/g,'')}" target="_blank" class="card-btn card-btn-wa" style="padding:4px 8px">💬</a>
+          <button class="card-btn card-btn-note" onclick="openLead('${l.id}')" style="padding:4px 8px">✏️</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('') || `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">No hay leads que coincidan</td></tr>`;
+}
+
+function renderAll() {
+  renderStats();
+  if (currentView === 'kanban') renderKanban();
+  else renderTable();
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('kanbanView').classList.toggle('hidden', v !== 'kanban');
+  document.getElementById('tableView').classList.toggle('active', v === 'table');
+  document.querySelectorAll('.view-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&v==='kanban')||(i===1&&v==='table')));
+  renderAll();
+}
+
+function dropLead(stageId) {
+  const l = leads.find(x => x.id === dragId);
+  if (l) { l.stage = stageId; save(); renderAll(); }
+}
+
+function openNewLead() {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Nuevo Lead';
+  document.getElementById('fName').value = '';
+  document.getElementById('fPhone').value = '';
+  document.getElementById('fEmail').value = '';
+  document.getElementById('fProduct').value = 'IUL';
+  document.getElementById('fStage').value = '0';
+  document.getElementById('fPriority').value = 'Media';
+  document.getElementById('fCoverage').value = '';
+  document.getElementById('fPremium').value = '';
+  document.getElementById('fSource').value = 'Facebook Ads';
+  document.getElementById('fNotes').value = '';
+  document.getElementById('btnDelete').style.display = 'none';
+  document.getElementById('notesSection').style.display = 'none';
+  document.getElementById('modalActions').style.display = 'none';
+  document.getElementById('leadModal').classList.add('open');
+}
+
+function openLead(id) {
+  const l = leads.find(x => x.id === id);
+  if (!l) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = l.name;
+  document.getElementById('fName').value = l.name;
+  document.getElementById('fPhone').value = l.phone;
+  document.getElementById('fEmail').value = l.email||'';
+  document.getElementById('fProduct').value = l.product;
+  document.getElementById('fStage').value = l.stage;
+  document.getElementById('fPriority').value = l.priority;
+  document.getElementById('fCoverage').value = l.coverage||'';
+  document.getElementById('fPremium').value = l.premium||'';
+  document.getElementById('fSource').value = l.source||'Facebook Ads';
+  document.getElementById('fNotes').value = l.notes||'';
+  document.getElementById('btnDelete').style.display = 'block';
+  // Actions
+  document.getElementById('modalActions').style.display = 'flex';
+  document.getElementById('btnCall').href = `tel:${l.phone}`;
+  document.getElementById('btnWa').href = `https://wa.me/1${l.phone.replace(/\D/g,'')}`;
+  document.getElementById('btnEmail').href = `mailto:${l.email||''}`;
+  // Notes
+  document.getElementById('notesSection').style.display = 'block';
+  renderNotes(l);
+  document.getElementById('leadModal').classList.add('open');
+}
+
+function renderNotes(l) {
+  const list = document.getElementById('notesList');
+  if (!l.noteLog || !l.noteLog.length) { list.innerHTML = '<div style="color:var(--muted);font-size:12px">Sin notas aún.</div>'; return; }
+  list.innerHTML = l.noteLog.slice().reverse().map(n =>
+    `<div class="note-item">${n.text}<div class="note-date">${new Date(n.date).toLocaleString('es-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>`
+  ).join('');
+}
+
+function addNote() {
+  const input = document.getElementById('newNoteInput');
+  const text = input.value.trim();
+  if (!text || !editingId) return;
+  const l = leads.find(x => x.id === editingId);
+  if (!l) return;
+  if (!l.noteLog) l.noteLog = [];
+  l.noteLog.push({text, date: new Date().toISOString()});
+  save();
+  renderNotes(l);
+  input.value = '';
+}
+
+function saveLead() {
+  const name = document.getElementById('fName').value.trim();
+  const phone = document.getElementById('fPhone').value.trim();
+  if (!name || !phone) { alert('Nombre y teléfono son requeridos.'); return; }
+  if (editingId) {
+    const l = leads.find(x => x.id === editingId);
+    if (l) {
+      l.name = name; l.phone = phone; l.email = document.getElementById('fEmail').value;
+      l.product = document.getElementById('fProduct').value;
+      l.stage = parseInt(document.getElementById('fStage').value);
+      l.priority = document.getElementById('fPriority').value;
+      l.coverage = document.getElementById('fCoverage').value;
+      l.premium = document.getElementById('fPremium').value;
+      l.source = document.getElementById('fSource').value;
+      l.notes = document.getElementById('fNotes').value;
+    }
+  } else {
+    leads.unshift({
+      id:uid(), name, phone,
+      email: document.getElementById('fEmail').value,
+      product: document.getElementById('fProduct').value,
+      stage: parseInt(document.getElementById('fStage').value),
+      priority: document.getElementById('fPriority').value,
+      coverage: document.getElementById('fCoverage').value,
+      premium: document.getElementById('fPremium').value,
+      source: document.getElementById('fSource').value,
+      notes: document.getElementById('fNotes').value,
+      noteLog: [], created: new Date().toISOString()
+    });
+  }
+  save(); closeModal(); renderAll();
+}
+
+function deleteLead() {
+  if (!editingId || !confirm('¿Eliminar este lead?')) return;
+  leads = leads.filter(x => x.id !== editingId);
+  save(); closeModal(); renderAll();
+}
+
+function closeModal() {
+  document.getElementById('leadModal').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('leadModal').addEventListener('click', e => { if (e.target === document.getElementById('leadModal')) closeModal(); });
+
+document.getElementById('newNoteInput').addEventListener('keydown', e => { if (e.key === 'Enter') addNote(); });
+
+load(); renderAll();
+</script>
+</body>
+</html>
