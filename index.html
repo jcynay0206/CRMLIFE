@@ -62,6 +62,31 @@ select:focus{outline:none;border-color:var(--accent)}
 .kanban{display:flex;gap:10px;padding:16px 24px;overflow-x:auto;min-height:calc(100vh - 200px);align-items:flex-start}
 .kanban::-webkit-scrollbar{height:5px}
 .kanban::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+@media(max-width:768px){
+  .kanban{flex-direction:column;padding:10px;gap:8px;min-height:auto}
+  .column{min-width:100%;max-width:100%;max-height:none}
+  .header{flex-wrap:wrap;gap:8px;padding:10px 14px}
+  .view-toggle{order:3;width:100%}
+  .view-btn{flex:1;text-align:center}
+  .stats-bar{padding:8px 12px;gap:8px}
+  .stat{padding:7px 10px}
+  .stat-val{font-size:16px}
+  .toolbar{padding:8px 12px;flex-wrap:wrap}
+  .search-box{min-width:100%}
+  .table-view{padding:10px}
+  table{font-size:11px}
+  th,td{padding:7px 8px}
+  .cal-week{grid-template-columns:repeat(4,1fr)}
+  .cal-day{min-height:80px;padding:7px}
+  .modal{border-radius:12px}
+  .form-row{grid-template-columns:1fr}
+  .logo span:last-child{display:none}
+}
+@media(max-width:480px){
+  .cal-week{grid-template-columns:repeat(2,1fr)}
+  .header-right{gap:5px}
+  .user-chip{display:none}
+}
 .column{background:var(--surface);border:1px solid var(--border);border-radius:12px;min-width:220px;max-width:220px;display:flex;flex-direction:column;max-height:calc(100vh - 220px)}
 .column.drag-over{border-color:var(--accent)}
 .col-header{padding:9px 11px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
@@ -87,6 +112,8 @@ select:focus{outline:none;border-color:var(--accent)}
 .tag-med{background:#1b4a3a;color:#80cbc4}
 .tag-salud{background:#4a2b1b;color:#ffb74d}
 .tag-anu{background:#3a1b4a;color:#f48fb1}
+.tag-gf{background:#2a3a1b;color:#dce775}
+.tag-soc{background:#1b3a3a;color:#80deea}
 .card-actions{display:flex;gap:4px}
 .card-btn{flex:1;padding:4px;border-radius:5px;border:none;cursor:pointer;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:2px;text-decoration:none;transition:.15s}
 .card-btn-call{background:#1b3a1b;color:#81c784}
@@ -227,6 +254,9 @@ tr:hover td{background:var(--surface2)}
       <input type="email" id="loginEmail" placeholder="Correo electrónico"/>
       <input type="password" id="loginPass" placeholder="Contraseña"/>
       <button class="login-btn" onclick="doLogin()">Entrar →</button>
+      <div style="text-align:center;margin-top:4px">
+        <button onclick="doReset()" style="background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;text-decoration:underline">¿Olvidaste tu contraseña?</button>
+      </div>
       <div class="login-err" id="loginErr"></div>
     </div>
   </div>
@@ -244,6 +274,7 @@ tr:hover td{background:var(--surface2)}
         <button class="view-btn" onclick="setView('calendar')">📅 Agenda</button>
         <button class="view-btn" id="auditTab" onclick="setView('audit')" style="display:none">📋 Auditoría</button>
         <button class="view-btn" id="usersTab" onclick="setView('users')" style="display:none">👥 Usuarios</button>
+        <button class="view-btn" id="trashTab" onclick="setView('trash')" style="display:none">🗑 Papelera</button>
       </div>
       <div class="user-chip">
         <span id="userNameChip">...</span>
@@ -258,7 +289,12 @@ tr:hover td{background:var(--surface2)}
     <div class="search-box"><span class="si">🔍</span><input type="text" id="searchInput" placeholder="Buscar..." oninput="renderAll()"/></div>
     <select id="filterProduct" onchange="renderAll()">
       <option value="">Todos los productos</option>
-      <option>IUL</option><option>Término</option><option>Medicare</option><option>Salud</option><option>Anualidad</option>
+      <option>IUL</option><option>Término</option><option>Medicare</option><option>Salud</option><option>Anualidad</option><option>Gastos Finales</option><option>Socios</option>
+    </select>
+    <select id="filterState" onchange="renderAll()">
+      <option value="">Todos los estados</option>
+      <option>New Jersey</option><option>New York</option><option>Florida</option>
+      <option>Texas</option><option>California</option><option>Otro</option>
     </select>
     <select id="filterAgent" onchange="renderAll()"><option value="">Todos los agentes</option></select>
   </div>
@@ -269,7 +305,7 @@ tr:hover td{background:var(--surface2)}
     <div class="kanban" id="kanbanBoard" style="display:none"></div>
   </div>
   <div class="table-view" id="tableView">
-    <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Producto</th><th>Etapa</th><th>Agente</th><th>Cita/Venc.</th><th>Acciones</th></tr></thead>
+    <table><thead><tr><th>Nombre</th><th>Teléfono</th><th>Producto</th><th>Etapa</th><th>Estado</th><th>Agente</th><th>Cita/Venc.</th><th>Acciones</th></tr></thead>
     <tbody id="tableBody"></tbody></table>
   </div>
   <div class="cal-view" id="calendarView">
@@ -292,6 +328,13 @@ tr:hover td{background:var(--surface2)}
       <select id="filterAuditUser" onchange="renderAudit()" style="font-size:12px"></select>
     </div>
     <div id="auditList"></div>
+  </div>
+  <div id="trashView" style="padding:16px 24px;display:none">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h2 style="font-size:16px;font-weight:800">🗑 Papelera de leads</h2>
+      <span style="font-size:12px;color:var(--muted)">Los leads aquí pueden restaurarse o eliminarse permanentemente</span>
+    </div>
+    <div id="trashList"></div>
   </div>
   <div class="users-view" id="usersView">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -326,7 +369,7 @@ tr:hover td{background:var(--surface2)}
       <div class="form-row">
         <div class="form-group"><label>Email</label><input id="fEmail" placeholder="juan@email.com"/></div>
         <div class="form-group"><label>Producto</label>
-          <select id="fProduct"><option>IUL</option><option>Término</option><option>Medicare</option><option>Salud</option><option>Anualidad</option></select>
+          <select id="fProduct"><option>IUL</option><option>Término</option><option>Medicare</option><option>Salud</option><option>Anualidad</option><option>Gastos Finales</option><option>Socios</option></select>
         </div>
       </div>
       <div class="form-row">
@@ -366,8 +409,21 @@ tr:hover td{background:var(--surface2)}
         <div class="form-group"><label>Cobertura</label><input id="fCoverage" placeholder="$500,000"/></div>
         <div class="form-group"><label>Prima</label><input id="fPremium" placeholder="$150/mes"/></div>
       </div>
-      <div class="form-group"><label>Fuente</label>
-        <select id="fSource"><option>Facebook Ads</option><option>Instagram</option><option>Referido</option><option>WhatsApp</option><option>Llamada fría</option><option>Otro</option></select>
+      <div class="form-row">
+        <div class="form-group"><label>Fuente</label>
+          <select id="fSource"><option>Facebook Ads</option><option>Instagram</option><option>Referido</option><option>WhatsApp</option><option>Llamada fría</option><option>Otro</option></select>
+        </div>
+        <div class="form-group"><label>Estado</label>
+          <select id="fState">
+            <option value="">— Seleccionar —</option>
+            <option>New Jersey</option><option>New York</option><option>Florida</option>
+            <option>Texas</option><option>California</option><option>Illinois</option>
+            <option>Georgia</option><option>North Carolina</option><option>Pennsylvania</option>
+            <option>Connecticut</option><option>Maryland</option><option>Virginia</option>
+            <option>Massachusetts</option><option>Nevada</option><option>Arizona</option>
+            <option>Colorado</option><option>Washington</option><option>Otro</option>
+          </select>
+        </div>
       </div>
       <div class="form-group"><label>Notas</label><textarea id="fNotes" placeholder="Detalles, necesidades, objeciones..."></textarea></div>
       <div id="notesSection" class="notes-section" style="display:none">
@@ -414,7 +470,7 @@ tr:hover td{background:var(--surface2)}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const app = initializeApp({
   apiKey:"AIzaSyAmwyHm36KRG1gy5ucIeWIT1f_xR3HEuh8",
@@ -439,11 +495,11 @@ const STAGES=[
   {id:6,label:'✅ Póliza Emitida',color:'#4caf50',bg:'#1b3a1b'},
   {id:7,label:'❌ Perdido',color:'#f44336',bg:'#3a1b1b'},
 ];
-const PTAG={IUL:'tag-iul','Término':'tag-term',Medicare:'tag-med',Salud:'tag-salud',Anualidad:'tag-anu'};
+const PTAG={IUL:'tag-iul','Término':'tag-term',Medicare:'tag-med',Salud:'tag-salud',Anualidad:'tag-anu','Gastos Finales':'tag-gf',Socios:'tag-soc'};
 const MONTHS=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 const RENEW_MS=[{days:30,label:'1 mes',cls:'toast-renew'},{days:14,label:'2 semanas',cls:'toast-renew'},{days:7,label:'1 semana',cls:'toast-urgent'},{days:3,label:'3 días',cls:'toast-urgent'}];
 
-let leads=[], auditLogs=[], crmUsers=[], editingId=null, dragId=null;
+let leads=[], auditLogs=[], crmUsers=[], deletedLeads=[], editingId=null, dragId=null;
 let currentView='kanban', weekOffset=0, notifiedIds=new Set();
 let currentUser=null, currentRole='agent', currentUserName='';
 
@@ -459,6 +515,19 @@ window.doLogin=async()=>{
   }
 };
 window.doLogout=async()=>{await signOut(auth);};
+
+window.doReset=async()=>{
+  const email=document.getElementById('loginEmail').value.trim();
+  if(!email){document.getElementById('loginErr').textContent='Escribe tu email primero';return;}
+  try{
+    await sendPasswordResetEmail(auth,email);
+    document.getElementById('loginErr').style.color='var(--green)';
+    document.getElementById('loginErr').textContent='✅ Revisa tu email — te enviamos el link de recuperación';
+  }catch(e){
+    document.getElementById('loginErr').style.color='var(--red)';
+    document.getElementById('loginErr').textContent='Email no encontrado';
+  }
+};
 
 onAuthStateChanged(auth, async user=>{
   if(user){
@@ -498,6 +567,7 @@ function setupUI(){
   if(currentRole==='admin'){
     document.getElementById('auditTab').style.display='';
     document.getElementById('usersTab').style.display='';
+    document.getElementById('trashTab').style.display='';
   }
   if(currentRole==='specialist'){
     document.getElementById('newLeadBtn').style.display='none';
@@ -519,6 +589,13 @@ function startListeners(){
     document.getElementById('loadingState').innerHTML='<span style="color:var(--red)">⚠️ Error — verifica las reglas de Firestore</span>';
   });
 
+  // Deleted leads listener (admin only)
+  if(currentRole==='admin'){
+    onSnapshot(query(DELETED_COL,orderBy('deletedAt','desc')), snap=>{
+      deletedLeads=snap.docs.map(d=>({...d.data(),id:d.id}));
+      if(currentView==='trash')renderTrash();
+    });
+  }
   // Audit (admin only)
   if(currentRole==='admin'){
     onSnapshot(query(AUDIT_COL,orderBy('timestamp','desc')), snap=>{
@@ -566,10 +643,12 @@ function filtered(){
   const q=document.getElementById('searchInput').value.toLowerCase();
   const prod=document.getElementById('filterProduct').value;
   const ag=document.getElementById('filterAgent').value;
+  const st=document.getElementById('filterState')?.value||'';
   return leads.filter(l=>
     (!q||l.name.toLowerCase().includes(q)||l.phone.includes(q)||(l.email||'').toLowerCase().includes(q))&&
     (!prod||l.product===prod)&&
-    (!ag||(l.assignedUid===ag||l.assignedEmail===ag))
+    (!ag||(l.assignedUid===ag||l.assignedEmail===ag))&&
+    (!st||l.state===st)
   );
 }
 
@@ -641,10 +720,11 @@ function cardHTML(l){
   const citaPill=l.citaDate?`<span class="card-pill pill-cita">📅 ${fmtDate(l.citaDate)} ${l.citaTime||''}</span>`:'';
   const rPill=l.polizaEnd?`<span class="card-pill ${renewCls(l.polizaEnd)}">${renewLabel(l.polizaEnd)}</span>`:'';
   const agentName=l.assignedName?`<div class="card-agent">👤 ${l.assignedName}</div>`:'';
+  const statePill=l.state?`<div class="card-agent" style="color:var(--muted)">📍 ${l.state}</div>`:'';
   return`<div class="card" data-id="${l.id}" onclick="window._open('${l.id}')">
     <div class="card-name"><span class="priority-dot ${pc}"></span>${l.name}</div>
     <div class="card-phone">${l.phone}</div>
-    ${agentName}<div>${citaPill}${rPill}</div>
+    ${agentName}${statePill}<div>${citaPill}${rPill}</div>
     <div class="card-tags"><span class="tag ${PTAG[l.product]||''}">${l.product}</span></div>
     <div class="card-actions">
       <a class="card-btn card-btn-call" href="tel:${l.phone}" onclick="event.stopPropagation()">📞</a>
@@ -664,6 +744,7 @@ function renderTable(){
       <td><a href="tel:${l.phone}" style="color:var(--accent);text-decoration:none">${l.phone}</a></td>
       <td><span class="tag ${PTAG[l.product]||''}">${l.product}</span></td>
       <td><span class="stage-badge" style="background:${s.bg};color:${s.color}">${s.label}</span></td>
+      <td style="color:var(--muted);font-size:11px">${l.state||'—'}</td>
       <td style="color:var(--muted);font-size:11px">${l.assignedName||'—'}</td>
       <td style="font-size:11px">${info}</td>
       <td><div style="display:flex;gap:4px">
@@ -789,6 +870,23 @@ window.deleteUser=async(id,name)=>{
   await deleteDoc(doc(db,'jcnay_users',id));
 };
 
+window.renderTrash=()=>{
+  const tl=document.getElementById('trashList');
+  if(!deletedLeads.length){tl.innerHTML='<div class="no-items">✅ Papelera vacía</div>';return;}
+  tl.innerHTML=deletedLeads.map(l=>{
+    const dt=new Date(l.deletedAt).toLocaleString('es-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px;margin-bottom:3px">${l.name}</div>
+        <div style="font-size:12px;color:var(--muted)">${l.phone} · ${l.product} · Eliminado por ${l.deletedBy||'Admin'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">🗓 ${dt}</div>
+      </div>
+      <button onclick="window.restoreLead('${l.id}')" class="btn btn-ghost btn-sm">♻️ Restaurar</button>
+      <button onclick="window.permDelete('${l.id}','${l.name}')" class="btn btn-danger btn-sm">🗑 Eliminar</button>
+    </div>`;
+  }).join('');
+};
+
 window.setView=v=>{
   currentView=v;
   document.getElementById('kanbanView').style.display=v==='kanban'?'flex':'none';
@@ -796,10 +894,12 @@ window.setView=v=>{
   document.getElementById('calendarView').classList.toggle('active',v==='calendar');
   document.getElementById('auditView').classList.toggle('active',v==='audit');
   document.getElementById('usersView').classList.toggle('active',v==='users');
+  const tv=document.getElementById('trashView');if(tv)tv.style.display=v==='trash'?'block':'none';
   document.getElementById('mainToolbar').style.display=['kanban','table'].includes(v)?'flex':'none';
-  document.querySelectorAll('.view-btn').forEach((b,i)=>b.classList.toggle('active',i===['kanban','table','calendar','audit','users'].indexOf(v)));
+  document.querySelectorAll('.view-btn').forEach((b,i)=>b.classList.toggle('active',i===['kanban','table','calendar','audit','users','trash'].indexOf(v)));
   if(v==='audit')window.renderAudit();
   if(v==='users')renderUsers();
+  if(v==='trash')window.renderTrash();
   renderAll();
 };
 
@@ -852,6 +952,7 @@ window._open=id=>{
   document.getElementById('fStage').value=l.stage;document.getElementById('fPriority').value=l.priority;
   document.getElementById('fCoverage').value=l.coverage||'';document.getElementById('fPremium').value=l.premium||'';
   document.getElementById('fSource').value=l.source||'Facebook Ads';document.getElementById('fNotes').value=l.notes||'';
+  const fst=document.getElementById('fState');if(fst)fst.value=l.state||'';
   document.getElementById('fCitaDate').value=l.citaDate||'';document.getElementById('fCitaTime').value=l.citaTime||'';
   document.getElementById('fCitaType').value=l.citaType||'Videollamada (Zoom)';
   document.getElementById('fPolizaStart').value=l.polizaStart||'';document.getElementById('fPolizaEnd').value=l.polizaEnd||'';
@@ -870,7 +971,7 @@ window._open=id=>{
   const fa=document.getElementById('fAgent');
   if(fa){fa.value=l.assignedUid||l.assignedEmail||'';}
   // Disable fields if readonly
-  ['fName','fPhone','fEmail','fProduct','fStage','fPriority','fCoverage','fPremium','fSource','fNotes','fCitaDate','fCitaTime','fCitaType','fPolizaStart','fPolizaEnd','fPolizaNum'].forEach(fid=>{
+  ['fName','fPhone','fEmail','fProduct','fStage','fPriority','fCoverage','fPremium','fSource','fState','fNotes','fCitaDate','fCitaTime','fCitaType','fPolizaStart','fPolizaEnd','fPolizaNum'].forEach(fid=>{
     const el=document.getElementById(fid);if(el)el.disabled=ro;
   });
   renderNotes(l);
@@ -911,6 +1012,7 @@ window.saveLead=async()=>{
     premium:document.getElementById('fPremium').value,
     source:document.getElementById('fSource').value,
     notes:document.getElementById('fNotes').value,
+    state:document.getElementById('fState')?.value||'',
     citaDate:stage===2?document.getElementById('fCitaDate').value:'',
     citaTime:stage===2?document.getElementById('fCitaTime').value:'',
     citaType:stage===2?document.getElementById('fCitaType').value:'',
@@ -931,12 +1033,33 @@ window.saveLead=async()=>{
 };
 
 window.deleteLead=async()=>{
-  if(!editingId||!confirm('¿Eliminar este lead permanentemente?'))return;
-  const l=leads.find(x=>x.id===editingId);
+  if(!editingId||!confirm('¿Mover este lead a la papelera?'))return;
+  const l=leads.find(x=>x.id===editingId);if(!l)return;
   sync('saving');
-  await logAudit('deleted',editingId,l?.name||'Desconocido','Lead eliminado');
+  await addDoc(DELETED_COL,{...l,deletedAt:new Date().toISOString(),deletedBy:currentUserName});
   await deleteDoc(doc(db,'jcnay_leads',editingId));
+  await logAudit('deleted',editingId,l.name,'Movido a papelera');
   sync('ok');closeModal();
+  showToast('🗑 Movido a papelera',`${l.name} — puedes restaurarlo desde Papelera`,'toast-cita');
+};
+
+window.restoreLead=async(id)=>{
+  const l=deletedLeads.find(x=>x.id===id);if(!l)return;
+  const {deletedAt,deletedBy,...leadData}=l;
+  sync('saving');
+  await addDoc(LEADS_COL,{...leadData,restored:true,restoredAt:new Date().toISOString(),restoredBy:currentUserName});
+  await deleteDoc(doc(db,'jcnay_deleted',id));
+  await logAudit('created',id,l.name,'Restaurado desde papelera');
+  sync('ok');
+  showToast('♻️ Lead restaurado',`${l.name} está de vuelta en el pipeline`,'toast-cita');
+};
+
+window.permDelete=async(id,name)=>{
+  if(!confirm(`¿Eliminar "${name}" PERMANENTEMENTE? Esta acción no se puede deshacer.`))return;
+  sync('saving');
+  await deleteDoc(doc(db,'jcnay_deleted',id));
+  await logAudit('deleted',id,name,'Eliminado permanentemente de papelera');
+  sync('ok');
 };
 
 window.closeModal=()=>{
