@@ -239,7 +239,18 @@ tr:hover td{background:var(--surface2)}
 .sync-ok{color:var(--green)}.sync-saving{color:var(--yellow)}
 
 .readonly-notice{background:#1b2a3a;border:1px solid #2196f3;border-radius:8px;padding:8px 12px;font-size:11px;color:#64b5f6;margin-bottom:10px}
+.import-preview{background:var(--bg);border-radius:8px;overflow:auto;max-height:160px;margin:8px 0}
+.import-preview table{font-size:10px;width:100%}
+.import-preview th{background:var(--surface2);padding:5px 8px;color:var(--muted);text-align:left;position:sticky;top:0}
+.import-preview td{padding:4px 8px;border-bottom:1px solid var(--border);color:var(--text)}
+.map-row{display:grid;grid-template-columns:1fr 20px 1fr;align-items:center;gap:8px;margin-bottom:8px}
+.map-label{font-size:11px;font-weight:700;color:var(--text)}
+.map-arrow{color:var(--muted);font-size:14px;text-align:center}
+.progress-bar{background:var(--surface2);border-radius:20px;height:8px;overflow:hidden;margin:8px 0}
+.progress-fill{background:var(--accent);height:100%;border-radius:20px;transition:.3s;width:0%}
+.import-result{font-size:12px;color:var(--green);text-align:center;font-weight:700;padding:8px}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -281,6 +292,7 @@ tr:hover td{background:var(--surface2)}
         <span class="role-badge" id="roleChip"></span>
       </div>
       <button class="btn btn-ghost btn-sm" onclick="doLogout()">Salir</button>
+      <button class="btn btn-ghost btn-sm" id="importBtn" onclick="openImport()" style="display:none">📥 Importar Excel</button>
       <button class="btn btn-primary btn-sm" id="newLeadBtn" onclick="openNewLead()">+ Lead</button>
     </div>
   </div>
@@ -467,6 +479,50 @@ tr:hover td{background:var(--surface2)}
 
 <div id="toastContainer"></div>
 
+<!-- IMPORT MODAL -->
+<input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleImportFile(event)"/>
+<div class="overlay" id="importModal">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-head"><h2>📥 Importar leads desde Excel</h2><button class="modal-close" onclick="closeImport()">✕</button></div>
+    <div class="modal-body">
+      <!-- STEP 1: Upload -->
+      <div id="importStep1">
+        <div style="border:2px dashed var(--border);border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:.2s" onclick="document.getElementById('importFileInput').click()" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <div style="font-size:32px;margin-bottom:8px">📊</div>
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px">Haz clic para seleccionar tu archivo</div>
+          <div style="font-size:12px;color:var(--muted)">Formatos aceptados: .xlsx, .xls, .csv</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:10px;background:var(--surface2);border-radius:8px;padding:10px">
+          💡 Tu Excel puede tener cualquier estructura — en el siguiente paso mapeas cada columna al campo correcto del CRM.
+        </div>
+      </div>
+      <!-- STEP 2: Map columns -->
+      <div id="importStep2" style="display:none">
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Vista previa (primeras 3 filas)</div>
+        <div class="import-preview"><table id="previewTable"></table></div>
+        <div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Mapeo de columnas</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Selecciona qué columna de tu Excel corresponde a cada campo del CRM:</div>
+        <div id="mappingRows"></div>
+        <div style="background:var(--surface2);border-radius:8px;padding:10px;margin-top:8px;font-size:11px;color:var(--muted)">
+          📌 Solo <strong style="color:var(--text)">Nombre</strong> y <strong style="color:var(--text)">Teléfono</strong> son requeridos. Los demás campos son opcionales.
+        </div>
+      </div>
+      <!-- STEP 3: Progress -->
+      <div id="importStep3" style="display:none;text-align:center;padding:10px 0">
+        <div style="font-size:28px;margin-bottom:10px">⬆️</div>
+        <div style="font-weight:700;margin-bottom:8px" id="importProgressLabel">Subiendo leads...</div>
+        <div class="progress-bar"><div class="progress-fill" id="importProgressFill"></div></div>
+        <div style="font-size:12px;color:var(--muted)" id="importProgressCount">0 / 0</div>
+        <div class="import-result" id="importResult" style="display:none"></div>
+      </div>
+    </div>
+    <div class="modal-foot" id="importFooter">
+      <button class="btn btn-ghost btn-sm" onclick="closeImport()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="importActionBtn" onclick="startImport()" style="display:none">⬆️ Importar <span id="importCount">0</span> leads</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -568,6 +624,7 @@ function setupUI(){
     document.getElementById('auditTab').style.display='';
     document.getElementById('usersTab').style.display='';
     document.getElementById('trashTab').style.display='';
+    document.getElementById('importBtn').style.display='';
   }
   if(currentRole==='specialist'){
     document.getElementById('newLeadBtn').style.display='none';
@@ -1121,6 +1178,165 @@ document.getElementById('userModal').addEventListener('click',e=>{if(e.target===
 document.getElementById('newNoteInput').addEventListener('keydown',e=>{if(e.key==='Enter')window.addNote();});
 document.getElementById('loginEmail').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPass').focus();});
 document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')window.doLogin();});
+
+// ============================================================
+// IMPORT EXCEL
+// ============================================================
+let importData=[], importHeaders=[], importMapping={};
+
+const CRM_FIELDS=[
+  {key:'name',    label:'Nombre *',   required:true},
+  {key:'phone',   label:'Teléfono *', required:true},
+  {key:'email',   label:'Email',      required:false},
+  {key:'state',   label:'Estado',     required:false},
+  {key:'product', label:'Producto',   required:false},
+  {key:'source',  label:'Fuente',     required:false},
+  {key:'notes',   label:'Notas',      required:false},
+  {key:'priority',label:'Prioridad',  required:false},
+];
+
+window.openImport=()=>{
+  importData=[];importHeaders=[];importMapping={};
+  document.getElementById('importStep1').style.display='block';
+  document.getElementById('importStep2').style.display='none';
+  document.getElementById('importStep3').style.display='none';
+  document.getElementById('importActionBtn').style.display='none';
+  document.getElementById('importResult').style.display='none';
+  document.getElementById('importFileInput').value='';
+  document.getElementById('importModal').classList.add('open');
+};
+
+window.closeImport=()=>document.getElementById('importModal').classList.remove('open');
+
+window.handleImportFile=e=>{
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=evt=>{
+    try{
+      const wb=XLSX.read(evt.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!json.length){alert('El archivo está vacío');return;}
+      importHeaders=json[0].map(h=>String(h).trim());
+      importData=json.slice(1).filter(row=>row.some(c=>c!==''));
+      showPreview();
+      buildMapping();
+      document.getElementById('importStep1').style.display='none';
+      document.getElementById('importStep2').style.display='block';
+      document.getElementById('importCount').textContent=importData.length;
+      document.getElementById('importActionBtn').style.display='';
+    }catch(err){alert('Error leyendo el archivo: '+err.message);}
+  };
+  reader.readAsBinaryString(file);
+};
+
+function showPreview(){
+  const preview=document.getElementById('previewTable');
+  const rows=importData.slice(0,3);
+  preview.innerHTML=`<thead><tr>${importHeaders.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r=>`<tr>${importHeaders.map((_,i)=>`<td>${r[i]||''}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+
+function buildMapping(){
+  const container=document.getElementById('mappingRows');
+  const opts=`<option value="">— No importar —</option>`+importHeaders.map((h,i)=>`<option value="${i}">${h}</option>`).join('');
+  container.innerHTML=CRM_FIELDS.map(f=>{
+    // Auto-detect common column names
+    let autoVal='';
+    const lower=f.key.toLowerCase();
+    importHeaders.forEach((h,i)=>{
+      const hl=h.toLowerCase();
+      if(lower==='name'&&(hl.includes('nombre')||hl.includes('name')||hl.includes('cliente')))autoVal=i;
+      if(lower==='phone'&&(hl.includes('tel')||hl.includes('phone')||hl.includes('cel')||hl.includes('móvil')||hl.includes('movil')))autoVal=i;
+      if(lower==='email'&&(hl.includes('email')||hl.includes('correo')))autoVal=i;
+      if(lower==='state'&&(hl.includes('estado')||hl.includes('state')))autoVal=i;
+      if(lower==='notes'&&(hl.includes('nota')||hl.includes('comment')||hl.includes('obs')))autoVal=i;
+      if(lower==='source'&&(hl.includes('fuente')||hl.includes('source')||hl.includes('origen')))autoVal=i;
+    });
+    importMapping[f.key]=autoVal!==''?parseInt(autoVal):'';
+    return`<div class="map-row">
+      <div class="map-label">${f.label}</div>
+      <div class="map-arrow">→</div>
+      <select onchange="importMapping['${f.key}']=this.value!==''?parseInt(this.value):''">
+        ${opts.replace(`value="${autoVal}"`,`value="${autoVal}" selected`)}
+      </select>
+    </div>`;
+  }).join('');
+}
+
+window.startImport=async()=>{
+  // Validate required fields
+  if(importMapping.name===''||importMapping.phone===''){
+    alert('Debes mapear al menos Nombre y Teléfono');return;
+  }
+  document.getElementById('importStep2').style.display='none';
+  document.getElementById('importStep3').style.display='block';
+  document.getElementById('importFooter').style.display='none';
+
+  const total=importData.length;
+  let done=0, errors=0;
+  const fill=document.getElementById('importProgressFill');
+  const countEl=document.getElementById('importProgressCount');
+  const label=document.getElementById('importProgressLabel');
+
+  const PRODUCTS=['IUL','Término','Medicare','Salud','Anualidad','Gastos Finales','Socios'];
+  const PRIORITIES=['Alta','Media','Baja'];
+
+  // Process in batches of 10
+  const batchSize=10;
+  for(let i=0;i<importData.length;i+=batchSize){
+    const batch=importData.slice(i,i+batchSize);
+    await Promise.all(batch.map(async row=>{
+      try{
+        const get=col=>col!==''?String(row[col]||'').trim():'';
+        const name=get(importMapping.name);
+        const phone=get(importMapping.phone);
+        if(!name&&!phone){errors++;return;}
+        let product=get(importMapping.product);
+        if(!PRODUCTS.includes(product))product='IUL';
+        let priority=get(importMapping.priority);
+        if(!PRIORITIES.includes(priority))priority='Media';
+        const leadData={
+          name:name||'Sin nombre',
+          phone:phone||'Sin teléfono',
+          email:get(importMapping.email),
+          state:get(importMapping.state),
+          product,priority,
+          source:get(importMapping.source)||'Lista fría',
+          notes:get(importMapping.notes),
+          stage:0, // Nuevo Lead
+          noteLog:[],
+          assignedUid:currentUser.uid,
+          assignedName:currentUserName,
+          createdBy:currentUserName,
+          importedAt:new Date().toISOString(),
+          created:new Date().toISOString(),
+          citaDate:'',citaTime:'',citaType:'',
+          polizaStart:'',polizaEnd:'',polizaNum:'',
+          coverage:'',premium:'',
+        };
+        await addDoc(LEADS_COL,leadData);
+        done++;
+      }catch(err){errors++;}
+    }));
+    const pct=Math.round(((i+batch.length)/total)*100);
+    fill.style.width=pct+'%';
+    countEl.textContent=`${Math.min(i+batchSize,total)} / ${total}`;
+  }
+
+  // Done
+  label.textContent='¡Importación completada!';
+  fill.style.width='100%';
+  const resultEl=document.getElementById('importResult');
+  resultEl.style.display='block';
+  resultEl.innerHTML=`✅ ${done} leads importados${errors>0?` · ⚠️ ${errors} errores`:''}`;
+  await logAudit('created','bulk','Importación masiva',`${done} leads importados desde Excel`);
+  document.getElementById('importFooter').innerHTML=`<button class="btn btn-primary btn-sm" onclick="closeImport()">✅ Listo</button>`;
+  document.getElementById('importFooter').style.display='flex';
+  showToast('📥 Importación completa',`${done} leads cargados al CRM`,'toast-cita');
+};
+
+document.getElementById('importModal').addEventListener('click',e=>{if(e.target===document.getElementById('importModal'))window.closeImport();});
 </script>
 </body>
 </html>
