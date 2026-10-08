@@ -568,7 +568,7 @@ tr:hover td{background:var(--surface2)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, limit as fsLimit, startAfter as fsStartAfter } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const app = initializeApp({
@@ -675,17 +675,14 @@ function setupUI(){
   }
 }
 
-let lastDoc=null, loadingMore=false;
-
 function startListeners(){
-  // Leads — load 300 at a time
+  // Simple query — no pagination, just limit rendering per column
   const leadsQ=currentRole==='agent'
-    ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'),fsLimit(300))
-    : query(LEADS_COL,orderBy('created','desc'),fsLimit(300));
+    ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'))
+    : query(LEADS_COL,orderBy('created','desc'));
 
   onSnapshot(leadsQ, snap=>{
     leads=snap.docs.map(d=>({...d.data(),id:d.id}));
-    lastDoc=snap.docs[snap.docs.length-1]||null;
     document.getElementById('loadingState').style.display='none';
     document.getElementById('kanbanBoard').style.display='flex';
     renderAll();checkAlerts();
@@ -693,22 +690,6 @@ function startListeners(){
     console.error('Firestore error:',err);
     document.getElementById('loadingState').innerHTML='<span style="color:var(--red)">⚠️ Error — verifica las reglas de Firestore</span>';
   });
-
-  window.loadMoreLeads=async()=>{
-    if(!lastDoc||loadingMore)return;
-    loadingMore=true;
-    sync('saving');
-    try{
-      const q=query(LEADS_COL,orderBy('created','desc'),fsStartAfter(lastDoc),fsLimit(300));
-      const snap=await getDocs(q);
-      const more=snap.docs.map(d=>({...d.data(),id:d.id}));
-      leads=[...leads,...more];
-      lastDoc=snap.docs.length?snap.docs[snap.docs.length-1]:null;
-      renderAll();
-    }catch(e){console.error(e);}
-    loadingMore=false;
-    sync('ok');
-  };
 
   // Deleted leads listener (admin only)
   if(currentRole==='admin'){
@@ -788,8 +769,7 @@ function renderStats(){
     <div class="stat"><div class="stat-val" style="color:#4caf50">${pol}</div><div class="stat-label">Pólizas</div></div>
     <div class="stat"><div class="stat-val" style="color:#9c27b0">${renSoon}</div><div class="stat-label">Por Renovar</div></div>
     <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>
-    const loadMoreBtn=lastDoc?`<button onclick="window.loadMoreLeads()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:10px;margin-left:8px">+ Cargar más</button>`:'';
-  document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto;gap:6px"><span style="font-size:10px;color:var(--muted)">Mostrando ${leads.length}</span>${loadMoreBtn}${notifBadge}</div>`;
+    document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto">${notifBadge}</div>`;
 }
 
 function daysUntil(ds){return Math.ceil((new Date(ds)-new Date())/86400000);}
