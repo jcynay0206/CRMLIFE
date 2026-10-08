@@ -675,40 +675,39 @@ function setupUI(){
   }
 }
 
+let lastDoc=null, loadingMore=false;
+
 function startListeners(){
-  // Leads
-  const PAGE_SIZE=300;
-  let lastDoc=null, loadingMore=false, totalLoaded=0;
+  // Leads — load 300 at a time
+  const leadsQ=currentRole==='agent'
+    ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'),fsLimit(300))
+    : query(LEADS_COL,orderBy('created','desc'),fsLimit(300));
 
-  function buildQuery(after=null){
-    let q=currentRole==='agent'
-      ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'),fsLimit(PAGE_SIZE))
-      : query(LEADS_COL,orderBy('created','desc'),fsLimit(PAGE_SIZE));
-    if(after) q=query(LEADS_COL,orderBy('created','desc'),fsStartAfter(after),fsLimit(PAGE_SIZE));
-    return q;
-  }
-
-  onSnapshot(buildQuery(), snap=>{
+  onSnapshot(leadsQ, snap=>{
     leads=snap.docs.map(d=>({...d.data(),id:d.id}));
     lastDoc=snap.docs[snap.docs.length-1]||null;
-    totalLoaded=leads.length;
     document.getElementById('loadingState').style.display='none';
     document.getElementById('kanbanBoard').style.display='flex';
     renderAll();checkAlerts();
-  },()=>{
+  },err=>{
+    console.error('Firestore error:',err);
     document.getElementById('loadingState').innerHTML='<span style="color:var(--red)">⚠️ Error — verifica las reglas de Firestore</span>';
   });
 
   window.loadMoreLeads=async()=>{
     if(!lastDoc||loadingMore)return;
     loadingMore=true;
-    const snap=await getDocs(buildQuery(lastDoc));
-    const more=snap.docs.map(d=>({...d.data(),id:d.id}));
-    leads=[...leads,...more];
-    lastDoc=snap.docs[snap.docs.length-1]||null;
-    totalLoaded=leads.length;
+    sync('saving');
+    try{
+      const q=query(LEADS_COL,orderBy('created','desc'),fsStartAfter(lastDoc),fsLimit(300));
+      const snap=await getDocs(q);
+      const more=snap.docs.map(d=>({...d.data(),id:d.id}));
+      leads=[...leads,...more];
+      lastDoc=snap.docs.length?snap.docs[snap.docs.length-1]:null;
+      renderAll();
+    }catch(e){console.error(e);}
     loadingMore=false;
-    renderAll();
+    sync('ok');
   };
 
   // Deleted leads listener (admin only)
@@ -789,8 +788,8 @@ function renderStats(){
     <div class="stat"><div class="stat-val" style="color:#4caf50">${pol}</div><div class="stat-label">Pólizas</div></div>
     <div class="stat"><div class="stat-val" style="color:#9c27b0">${renSoon}</div><div class="stat-label">Por Renovar</div></div>
     <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>
-    const loadMoreBtn=window.loadMoreLeads&&typeof lastDoc!=='undefined'&&lastDoc?`<button onclick="window.loadMoreLeads()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:10px;margin-left:8px">+ Cargar más</button>`:'';
-  document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto;gap:6px"><span style="font-size:10px;color:var(--muted)">Vista: ${leads.length} leads</span>${loadMoreBtn}${notifBadge}</div>`;
+    const loadMoreBtn=lastDoc?`<button onclick="window.loadMoreLeads()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:10px;margin-left:8px">+ Cargar más</button>`:'';
+  document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto;gap:6px"><span style="font-size:10px;color:var(--muted)">Mostrando ${leads.length}</span>${loadMoreBtn}${notifBadge}</div>`;
 }
 
 function daysUntil(ds){return Math.ceil((new Date(ds)-new Date())/86400000);}
