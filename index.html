@@ -114,6 +114,9 @@ select:focus{outline:none;border-color:var(--accent)}
 .tag-anu{background:#3a1b4a;color:#f48fb1}
 .tag-gf{background:#2a3a1b;color:#dce775}
 .tag-soc{background:#1b3a3a;color:#80deea}
+.tag-lic{background:#1b3a1b;color:#a5d6a7}
+.tag-nolic{background:#3a2a1b;color:#ffcc80}
+.extra-socios{background:#1a2a2a;border-color:#009688}
 .card-actions{display:flex;gap:4px}
 .card-btn{flex:1;padding:4px;border-radius:5px;border:none;cursor:pointer;font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:2px;text-decoration:none;transition:.15s}
 .card-btn-call{background:#1b3a1b;color:#81c784}
@@ -293,6 +296,7 @@ tr:hover td{background:var(--surface2)}
       </div>
       <button class="btn btn-ghost btn-sm" onclick="doLogout()">Salir</button>
       <button class="btn btn-ghost btn-sm" id="importBtn" onclick="openImport()" style="display:none">📥 Importar Excel</button>
+      <button class="btn btn-ghost btn-sm" id="testNotifBtn" onclick="testNotification()" title="Probar notificaciones" style="display:none">🔔</button>
       <button class="btn btn-primary btn-sm" id="newLeadBtn" onclick="openNewLead()">+ Lead</button>
     </div>
   </div>
@@ -426,6 +430,33 @@ tr:hover td{background:var(--surface2)}
         <div class="form-group"><label>Número de póliza</label><input id="fPolizaNum" placeholder="IUL-2024-001"/></div>
         <div style="font-size:10px;color:var(--muted);margin-top:5px">🔔 Alertas en: 1 mes, 2 semanas, 1 semana y 3 días antes del vencimiento</div>
       </div>
+      <!-- SOCIOS FIELDS -->
+      <div id="sociosFields" class="extra-fields extra-socios" style="display:none">
+        <div class="extra-label" style="color:#009688">🤝 Detalles del Socio</div>
+        <div class="form-row">
+          <div class="form-group"><label>Estado de licencia</label>
+            <select id="fLicStatus" onchange="toggleLicFields()">
+              <option value="con">✅ Con licencia</option>
+              <option value="sin">⏳ Sin licencia aún</option>
+            </select>
+          </div>
+          <div class="form-group" id="fLicNumGroup"><label>Número de licencia</label><input id="fLicNum" placeholder="NPN-123456"/></div>
+        </div>
+        <div id="fExamGroup" style="display:none">
+          <div class="form-row">
+            <div class="form-group"><label>Fecha del examen</label><input type="date" id="fExamDate"/></div>
+            <div class="form-group"><label>Estado del examen</label>
+              <select id="fExamStatus">
+                <option value="pendiente">📅 Pendiente</option>
+                <option value="aprobado">✅ Aprobado</option>
+                <option value="reprobado">❌ Reprobado</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="form-group"><label>Upline / Mentor</label><input id="fUpline" placeholder="Nombre del upline"/></div>
+        <div style="font-size:10px;color:var(--muted);margin-top:5px">🔔 Recibirás alertas 7 días y 1 día antes del examen</div>
+      </div>
       <div class="form-row">
         <div class="form-group"><label>Cobertura</label><input id="fCoverage" placeholder="$500,000"/></div>
         <div class="form-group"><label>Prima</label><input id="fPremium" placeholder="$150/mes"/></div>
@@ -434,6 +465,7 @@ tr:hover td{background:var(--surface2)}
         <div class="form-group"><label>Fuente</label>
           <select id="fSource"><option>Facebook Ads</option><option>Instagram</option><option>Referido</option><option>WhatsApp</option><option>Llamada fría</option><option>Otro</option></select>
         </div>
+        <div class="form-group"><label>Fecha de entrada</label><input type="datetime-local" id="fCreated" title="Fecha en que entró este lead"/></div>
         <div class="form-group"><label>Estado</label>
           <select id="fState">
             <option value="">— Seleccionar —</option>
@@ -636,6 +668,7 @@ function setupUI(){
     document.getElementById('usersTab').style.display='';
     document.getElementById('trashTab').style.display='';
     document.getElementById('importBtn').style.display='';
+    document.getElementById('testNotifBtn').style.display='';
   }
   if(currentRole==='specialist'){
     document.getElementById('newLeadBtn').style.display='none';
@@ -725,13 +758,17 @@ function renderStats(){
   const pol=leads.filter(l=>l.stage===6).length,high=leads.filter(l=>l.priority==='Alta'&&l.stage<6).length;
   const pipe=leads.filter(l=>l.stage>0&&l.stage<6).length;
   const renSoon=leads.filter(l=>{if(l.stage!==6||!l.polizaEnd)return false;const d=daysUntil(l.polizaEnd);return d>0&&d<=30;}).length;
+  // Notification status check
+  const notifStatus=typeof Notification!=='undefined'?Notification.permission:'unsupported';
+  const notifBadge=notifStatus==='granted'?'':'<span title="Activa notificaciones" onclick="window.testNotification&&window.testNotification()" style="cursor:pointer;font-size:10px;background:#3a1b1b;color:#ef9a9a;padding:2px 7px;border-radius:20px;margin-left:6px">🔕 Sin notif.</span>';
   document.getElementById('statsBar').innerHTML=`
     <div class="stat"><div class="stat-val">${t}</div><div class="stat-label">Total</div></div>
     <div class="stat"><div class="stat-val" style="color:#ff9800">${citas}</div><div class="stat-label">Citas</div></div>
     <div class="stat"><div class="stat-val" style="color:#2196f3">${pipe}</div><div class="stat-label">Pipeline</div></div>
     <div class="stat"><div class="stat-val" style="color:#4caf50">${pol}</div><div class="stat-label">Pólizas</div></div>
     <div class="stat"><div class="stat-val" style="color:#9c27b0">${renSoon}</div><div class="stat-label">Por Renovar</div></div>
-    <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>`;
+    <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>
+    <div style="display:flex;align-items:center;margin-left:auto">${notifBadge}</div>`;
 }
 
 function daysUntil(ds){return Math.ceil((new Date(ds)-new Date())/86400000);}
@@ -815,7 +852,7 @@ function cardHTML(l){
     ${l.email?`<div class="card-phone">✉️ ${l.email}</div>`:''}
     ${l.state?`<div class="card-phone">📍 ${l.state}</div>`:''}
     ${agentName}
-    <div style="margin:5px 0">${citaPill}${rPill}</div>
+    <div style="margin:5px 0">${citaPill}${rPill}${sociosPill}</div>
     ${l.coverage||l.premium?`<div style="font-size:9px;color:var(--muted);margin-bottom:5px">${l.coverage?'💰 '+l.coverage+' ':''}${l.premium?'· '+l.premium:''}</div>`:''} 
     ${l.notes?`<div style="font-size:9px;color:var(--muted);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">📝 ${l.notes}</div>`:''} 
     <div class="card-actions" onclick="event.stopPropagation()">
@@ -962,6 +999,24 @@ window.deleteUser=async(id,name)=>{
   await deleteDoc(doc(db,'jcnay_users',id));
 };
 
+window.testNotification=async()=>{
+  if(Notification.permission==='denied'){
+    showToast('🔕 Notificaciones bloqueadas','Ve a Configuración del navegador → Permisos del sitio y activa las notificaciones','toast-urgent');
+    return;
+  }
+  if(Notification.permission==='default'){
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){
+      showToast('🔕 Permiso denegado','Acepta el permiso para recibir alertas de citas y renovaciones','toast-urgent');
+      return;
+    }
+  }
+  // Test toast
+  showToast('🔔 Notificaciones activas','Recibirás alertas de citas y renovaciones de póliza en pantalla y con sonido','toast-cita');
+  // Test browser notification
+  new Notification('✅ JC Nay CRM — Notificaciones activas',{body:'Las alertas de citas y pólizas llegarán aquí'});
+};
+
 window.renderTrash=()=>{
   const tl=document.getElementById('trashList');
   if(!deletedLeads.length){tl.innerHTML='<div class="no-items">✅ Papelera vacía</div>';return;}
@@ -1010,9 +1065,23 @@ async function dropLead(stageId){
 
 window.toggleExtraFields=()=>{
   const s=parseInt(document.getElementById('fStage').value);
+  const prod=document.getElementById('fProduct').value;
   document.getElementById('citaFields').style.display=s===2?'block':'none';
   document.getElementById('polizaFields').style.display=s===6?'block':'none';
+  document.getElementById('sociosFields').style.display=prod==='Socios'?'block':'none';
 };
+
+window.toggleLicFields=()=>{
+  const val=document.getElementById('fLicStatus').value;
+  document.getElementById('fLicNumGroup').style.display=val==='con'?'block':'none';
+  document.getElementById('fExamGroup').style.display=val==='sin'?'block':'none';
+};
+
+// Also trigger on product change
+setTimeout(()=>{
+  const fp=document.getElementById('fProduct');
+  if(fp)fp.addEventListener('change',window.toggleExtraFields);
+},1000);
 
 window.openNewLead=()=>{
   if(currentRole==='specialist')return;
@@ -1046,6 +1115,19 @@ window._open=id=>{
   document.getElementById('fCoverage').value=l.coverage||'';document.getElementById('fPremium').value=l.premium||'';
   document.getElementById('fSource').value=l.source||'Facebook Ads';document.getElementById('fNotes').value=l.notes||'';
   const fst=document.getElementById('fState');if(fst)fst.value=l.state||'';
+  // Socios
+  const fls=document.getElementById('fLicStatus');if(fls)fls.value=l.licStatus||'con';
+  const fln=document.getElementById('fLicNum');if(fln)fln.value=l.licNum||'';
+  const fed=document.getElementById('fExamDate');if(fed)fed.value=l.examDate||'';
+  const fes=document.getElementById('fExamStatus');if(fes)fes.value=l.examStatus||'pendiente';
+  const fup=document.getElementById('fUpline');if(fup)fup.value=l.upline||'';
+  // Created date
+  const fc=document.getElementById('fCreated');
+  if(fc&&l.created){try{fc.value=new Date(l.created).toISOString().slice(0,16);}catch(e){}}
+  // Show socios fields if product is Socios
+  const sf=document.getElementById('sociosFields');
+  if(sf)sf.style.display=l.product==='Socios'?'block':'none';
+  if(l.product==='Socios'&&l.licStatus)window.toggleLicFields?.();
   document.getElementById('fCitaDate').value=l.citaDate||'';document.getElementById('fCitaTime').value=l.citaTime||'';
   document.getElementById('fCitaType').value=l.citaType||'Videollamada (Zoom)';
   document.getElementById('fPolizaStart').value=l.polizaStart||'';document.getElementById('fPolizaEnd').value=l.polizaEnd||'';
@@ -1064,7 +1146,7 @@ window._open=id=>{
   const fa=document.getElementById('fAgent');
   if(fa){fa.value=l.assignedUid||l.assignedEmail||'';}
   // Disable fields if readonly
-  ['fName','fPhone','fEmail','fProduct','fStage','fPriority','fCoverage','fPremium','fSource','fState','fNotes','fCitaDate','fCitaTime','fCitaType','fPolizaStart','fPolizaEnd','fPolizaNum'].forEach(fid=>{
+  ['fName','fPhone','fEmail','fProduct','fStage','fPriority','fCoverage','fPremium','fSource','fState','fNotes','fCitaDate','fCitaTime','fCitaType','fPolizaStart','fPolizaEnd','fPolizaNum','fLicStatus','fLicNum','fExamDate','fExamStatus','fUpline','fCreated'].forEach(fid=>{
     const el=document.getElementById(fid);if(el)el.disabled=ro;
   });
   renderNotes(l);
@@ -1118,6 +1200,11 @@ window.saveLead=async()=>{
     source:document.getElementById('fSource').value,
     notes:document.getElementById('fNotes').value,
     state:document.getElementById('fState')?.value||'',
+    licStatus:document.getElementById('fLicStatus')?.value||'',
+    licNum:document.getElementById('fLicNum')?.value||'',
+    examDate:document.getElementById('fExamDate')?.value||'',
+    examStatus:document.getElementById('fExamStatus')?.value||'pendiente',
+    upline:document.getElementById('fUpline')?.value||'',
     citaDate:stage===2?document.getElementById('fCitaDate').value:'',
     citaTime:stage===2?document.getElementById('fCitaTime').value:'',
     citaType:stage===2?document.getElementById('fCitaType').value:'',
