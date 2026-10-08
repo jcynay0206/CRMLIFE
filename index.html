@@ -568,7 +568,7 @@ tr:hover td{background:var(--surface2)}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, orderBy, where, getDocs, limit as fsLimit, startAfter as fsStartAfter } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const app = initializeApp({
@@ -677,10 +677,8 @@ function setupUI(){
 
 function startListeners(){
   // Leads
-  const PAGE_SIZE=300; // Load 300 at a time
+  const PAGE_SIZE=300;
   let lastDoc=null, loadingMore=false, totalLoaded=0;
-
-  const {limit:fsLimit, startAfter:fsStartAfter} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
 
   function buildQuery(after=null){
     let q=currentRole==='agent'
@@ -704,8 +702,7 @@ function startListeners(){
   window.loadMoreLeads=async()=>{
     if(!lastDoc||loadingMore)return;
     loadingMore=true;
-    const {getDocs:gd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const snap=await gd(buildQuery(lastDoc));
+    const snap=await getDocs(buildQuery(lastDoc));
     const more=snap.docs.map(d=>({...d.data(),id:d.id}));
     leads=[...leads,...more];
     lastDoc=snap.docs[snap.docs.length-1]||null;
