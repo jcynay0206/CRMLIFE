@@ -769,7 +769,7 @@ function renderStats(){
     <div class="stat"><div class="stat-val" style="color:#4caf50">${pol}</div><div class="stat-label">Pólizas</div></div>
     <div class="stat"><div class="stat-val" style="color:#9c27b0">${renSoon}</div><div class="stat-label">Por Renovar</div></div>
     <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>
-    document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto">${notifBadge}</div>`;
+    <div style="display:flex;align-items:center;margin-left:auto">${notifBadge}</div>`;
 }
 
 function daysUntil(ds){return Math.ceil((new Date(ds)-new Date())/86400000);}
