@@ -677,18 +677,42 @@ function setupUI(){
 
 function startListeners(){
   // Leads
-  let leadsQuery=currentRole==='agent'
-    ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'))
-    : query(LEADS_COL,orderBy('created','desc'));
+  const PAGE_SIZE=300; // Load 300 at a time
+  let lastDoc=null, loadingMore=false, totalLoaded=0;
 
-  onSnapshot(leadsQuery, snap=>{
+  const {limit:fsLimit, startAfter:fsStartAfter} = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+
+  function buildQuery(after=null){
+    let q=currentRole==='agent'
+      ? query(LEADS_COL,where('assignedUid','==',currentUser.uid),orderBy('created','desc'),fsLimit(PAGE_SIZE))
+      : query(LEADS_COL,orderBy('created','desc'),fsLimit(PAGE_SIZE));
+    if(after) q=query(LEADS_COL,orderBy('created','desc'),fsStartAfter(after),fsLimit(PAGE_SIZE));
+    return q;
+  }
+
+  onSnapshot(buildQuery(), snap=>{
     leads=snap.docs.map(d=>({...d.data(),id:d.id}));
+    lastDoc=snap.docs[snap.docs.length-1]||null;
+    totalLoaded=leads.length;
     document.getElementById('loadingState').style.display='none';
     document.getElementById('kanbanBoard').style.display='flex';
     renderAll();checkAlerts();
   },()=>{
     document.getElementById('loadingState').innerHTML='<span style="color:var(--red)">⚠️ Error — verifica las reglas de Firestore</span>';
   });
+
+  window.loadMoreLeads=async()=>{
+    if(!lastDoc||loadingMore)return;
+    loadingMore=true;
+    const {getDocs:gd}=await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const snap=await gd(buildQuery(lastDoc));
+    const more=snap.docs.map(d=>({...d.data(),id:d.id}));
+    leads=[...leads,...more];
+    lastDoc=snap.docs[snap.docs.length-1]||null;
+    totalLoaded=leads.length;
+    loadingMore=false;
+    renderAll();
+  };
 
   // Deleted leads listener (admin only)
   if(currentRole==='admin'){
@@ -768,7 +792,8 @@ function renderStats(){
     <div class="stat"><div class="stat-val" style="color:#4caf50">${pol}</div><div class="stat-label">Pólizas</div></div>
     <div class="stat"><div class="stat-val" style="color:#9c27b0">${renSoon}</div><div class="stat-label">Por Renovar</div></div>
     <div class="stat"><div class="stat-val" style="color:#f44336">${high}</div><div class="stat-label">Alta Prior.</div></div>
-    <div style="display:flex;align-items:center;margin-left:auto">${notifBadge}</div>`;
+    const loadMoreBtn=window.loadMoreLeads&&typeof lastDoc!=='undefined'&&lastDoc?`<button onclick="window.loadMoreLeads()" style="background:var(--accent);color:#fff;border:none;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:10px;margin-left:8px">+ Cargar más</button>`:'';
+  document.getElementById('statsBar').innerHTML+=`<div style="display:flex;align-items:center;margin-left:auto;gap:6px"><span style="font-size:10px;color:var(--muted)">Vista: ${leads.length} leads</span>${loadMoreBtn}${notifBadge}</div>`;
 }
 
 function daysUntil(ds){return Math.ceil((new Date(ds)-new Date())/86400000);}
@@ -1048,6 +1073,26 @@ window.setView=v=>{
   if(v==='users')renderUsers();
   if(v==='trash')window.renderTrash();
   renderAll();
+};
+
+window._expandCol=stageId=>{
+  const all=window._stageData?.[stageId]||[];
+  const col=document.querySelector(`.column[data-stage="${stageId}"] .col-cards`);
+  if(!col)return;
+  col.innerHTML=(all.length?all.map(l=>cardHTML(l)).join(''):'<div class="empty-col">Sin leads</div>');
+  // Re-attach drag events
+  col.querySelectorAll('.card').forEach(c=>{
+    if(currentRole!=='specialist'){
+      c.setAttribute('draggable','true');
+      c.addEventListener('dragstart',()=>{dragId=c.dataset.id;c.classList.add('dragging');});
+      c.addEventListener('dragend',()=>c.classList.remove('dragging'));
+    }
+    let tm=false;
+    c.addEventListener('touchstart',()=>{tm=false;},{passive:true});
+    c.addEventListener('touchmove',()=>{tm=true;},{passive:true});
+    c.addEventListener('touchend',e=>{if(!tm){e.preventDefault();const id=c.dataset.id;if(id)window._open(id);}});
+    c.addEventListener('click',e=>{if(e.target.closest('.card-btn')||e.target.closest('a'))return;const id=c.dataset.id;if(id)window._open(id);});
+  });
 };
 
 window.changeWeek=dir=>{weekOffset=dir===0?0:weekOffset+dir;renderCalendar();};
