@@ -366,7 +366,16 @@ tr:hover td{background:var(--surface2)}
 <!-- MODAL LEAD -->
 <div class="overlay" id="leadModal">
   <div class="modal">
-    <div class="modal-head"><h2 id="modalTitle">Nuevo Lead</h2><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-head">
+      <h2 id="modalTitle">Nuevo Lead</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="modalTabs" style="display:none;background:var(--surface2);border-radius:7px;padding:2px;display:flex;gap:2px">
+          <button class="view-btn active" id="tab-info" onclick="switchTab('info')">📋 Info</button>
+          <button class="view-btn" id="tab-notes" onclick="switchTab('notes')">📝 Notas</button>
+        </div>
+        <button class="modal-close" onclick="closeModal()">✕</button>
+      </div>
+    </div>
     <div class="modal-body">
       <div id="readonlyNotice" class="readonly-notice" style="display:none">👁️ Modo solo lectura — puedes agregar notas pero no editar este lead</div>
       <div id="modalActions" class="modal-actions" style="display:none">
@@ -438,10 +447,12 @@ tr:hover td{background:var(--surface2)}
         </div>
       </div>
       <div class="form-group"><label>Notas</label><textarea id="fNotes" placeholder="Detalles, necesidades, objeciones..."></textarea></div>
-      <div id="notesSection" class="notes-section" style="display:none">
-        <h4>📝 Historial de notas</h4>
-        <div id="notesList"></div>
-        <div class="add-note"><input id="newNoteInput" placeholder="Nota rápida..."/><button onclick="addNote()">+ Agregar</button></div>
+      <div id="notesSection" style="display:none">
+        <div class="notes-section">
+          <h4>📝 Historial de notas <span id="notesCount" style="color:var(--accent);margin-left:4px"></span></h4>
+          <div id="notesList"></div>
+          <div class="add-note"><input id="newNoteInput" placeholder="Escribe una nota y presiona Enter..."/><button onclick="addNote()">+ Agregar</button></div>
+        </div>
       </div>
     </div>
     <div class="modal-foot">
@@ -769,6 +780,23 @@ function renderKanban(){
       c.addEventListener('dragstart',()=>{dragId=c.dataset.id;c.classList.add('dragging');});
       c.addEventListener('dragend',()=>c.classList.remove('dragging'));
     }
+    // Click handler — works on desktop and mobile
+    let touchMoved=false;
+    c.addEventListener('touchstart',()=>{touchMoved=false;},{passive:true});
+    c.addEventListener('touchmove',()=>{touchMoved=true;},{passive:true});
+    c.addEventListener('touchend',e=>{
+      if(!touchMoved){
+        e.preventDefault();
+        const id=c.dataset.id;
+        if(id)window._open(id);
+      }
+    });
+    c.addEventListener('click',e=>{
+      // Only open if not clicking an action button/link
+      if(e.target.closest('.card-btn')||e.target.closest('a'))return;
+      const id=c.dataset.id;
+      if(id)window._open(id);
+    });
   });
 }
 
@@ -778,15 +806,22 @@ function cardHTML(l){
   const rPill=l.polizaEnd?`<span class="card-pill ${renewCls(l.polizaEnd)}">${renewLabel(l.polizaEnd)}</span>`:'';
   const agentName=l.assignedName?`<div class="card-agent">👤 ${l.assignedName}</div>`:'';
   const statePill=l.state?`<div class="card-agent" style="color:var(--muted)">📍 ${l.state}</div>`:'';
-  return`<div class="card" data-id="${l.id}" onclick="window._open('${l.id}')">
-    <div class="card-name"><span class="priority-dot ${pc}"></span>${l.name}</div>
-    <div class="card-phone">${l.phone}</div>
-    ${agentName}${statePill}<div>${citaPill}${rPill}</div>
-    <div class="card-tags"><span class="tag ${PTAG[l.product]||''}">${l.product}</span></div>
-    <div class="card-actions">
-      <a class="card-btn card-btn-call" href="tel:${l.phone}" onclick="event.stopPropagation()">📞</a>
-      <a class="card-btn card-btn-wa" href="https://wa.me/1${l.phone.replace(/\D/g,'')}" target="_blank" onclick="event.stopPropagation()">💬</a>
-      <button class="card-btn card-btn-note" onclick="event.stopPropagation();window._open('${l.id}')">📝</button>
+  return`<div class="card" data-id="${l.id}">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px">
+      <div class="card-name"><span class="priority-dot ${pc}"></span>${l.name}</div>
+      <span class="tag ${PTAG[l.product]||''}" style="flex-shrink:0;margin-left:4px">${l.product}</span>
+    </div>
+    <div class="card-phone">📱 ${l.phone}</div>
+    ${l.email?`<div class="card-phone">✉️ ${l.email}</div>`:''}
+    ${l.state?`<div class="card-phone">📍 ${l.state}</div>`:''}
+    ${agentName}
+    <div style="margin:5px 0">${citaPill}${rPill}</div>
+    ${l.coverage||l.premium?`<div style="font-size:9px;color:var(--muted);margin-bottom:5px">${l.coverage?'💰 '+l.coverage+' ':''}${l.premium?'· '+l.premium:''}</div>`:''} 
+    ${l.notes?`<div style="font-size:9px;color:var(--muted);margin-bottom:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">📝 ${l.notes}</div>`:''} 
+    <div class="card-actions" onclick="event.stopPropagation()">
+      <a class="card-btn card-btn-call" href="tel:${l.phone}">📞 Llamar</a>
+      <a class="card-btn card-btn-wa" href="https://wa.me/1${l.phone.replace(/\D/g,'')}" target="_blank">💬 WA</a>
+      <button class="card-btn card-btn-note" onclick="window._open('${l.id}')">📋 Ver</button>
     </div>
   </div>`;
 }
@@ -983,6 +1018,7 @@ window.openNewLead=()=>{
   if(currentRole==='specialist')return;
   editingId=null;
   document.getElementById('modalTitle').textContent='Nuevo Lead';
+  const mt=document.getElementById('modalTabs');if(mt)mt.style.display='none';
   ['fName','fPhone','fEmail','fCoverage','fPremium','fNotes','fCitaDate','fCitaTime','fPolizaStart','fPolizaEnd','fPolizaNum'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   document.getElementById('fProduct').value='IUL';document.getElementById('fStage').value='0';
   document.getElementById('fPriority').value='Media';document.getElementById('fSource').value='Facebook Ads';
@@ -1037,9 +1073,21 @@ window._open=id=>{
 
 function renderNotes(l){
   const list=document.getElementById('notesList');
-  if(!l.noteLog||!l.noteLog.length){list.innerHTML='<div style="color:var(--muted);font-size:11px">Sin notas aún.</div>';return;}
+  const count=document.getElementById('notesCount');
+  if(!l.noteLog||!l.noteLog.length){
+    list.innerHTML='<div style="color:var(--muted);font-size:11px;padding:8px 0">Sin notas aún — agrega la primera nota arriba.</div>';
+    if(count)count.textContent='';
+    return;
+  }
+  if(count)count.textContent=`(${l.noteLog.length})`;
   list.innerHTML=l.noteLog.slice().reverse().map(n=>
-    `<div class="note-item"><strong style="color:var(--accent);font-size:10px">${n.author||'Admin'}</strong> ${n.text}<div class="note-date">${new Date(n.date).toLocaleString('es-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div></div>`
+    `<div class="note-item">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px">
+        <strong style="color:var(--accent);font-size:10px">👤 ${n.author||'Admin'}</strong>
+        <span class="note-date">${new Date(n.date).toLocaleString('es-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+      </div>
+      ${n.text}
+    </div>`
   ).join('');
 }
 
@@ -1123,6 +1171,26 @@ window.closeModal=()=>{
   document.getElementById('leadModal').classList.remove('open');
   editingId=null;
   ['fName','fPhone','fEmail','fCoverage','fPremium','fNotes'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.disabled=false;});
+  switchTab('info');
+};
+
+window.switchTab=tab=>{
+  const info=document.querySelector('.modal-body > *:not(#notesSection):not(#readonlyNotice):not(.modal-actions)');
+  document.getElementById('tab-info')?.classList.toggle('active',tab==='info');
+  document.getElementById('tab-notes')?.classList.toggle('active',tab==='notes');
+  // Toggle content sections
+  document.querySelectorAll('.modal-body .form-group,.modal-body .form-row,.modal-body .extra-fields,.modal-body #readonlyNotice,.modal-body .modal-actions').forEach(el=>{
+    el.style.display=tab==='info'?'':' none';
+  });
+  const ns=document.getElementById('notesSection');
+  if(ns)ns.style.display=tab==='notes'?'block':'none';
+  // Fix: re-show readonly and actions always
+  if(tab==='info'){
+    const ro=document.getElementById('readonlyNotice');
+    if(ro&&ro.getAttribute('data-visible')=='1')ro.style.display='block';
+    const ma=document.getElementById('modalActions');
+    if(ma&&ma.getAttribute('data-visible')=='1')ma.style.display='flex';
+  }
 };
 
 // ALERTS
